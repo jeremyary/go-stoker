@@ -1,6 +1,6 @@
 FROM golang:latest
 
-LABEL maintainer="Jeremy Ary<jeremy.ary@gmail.com>"
+LABEL maintainer="Jeremy Ary<jary@redhat.com>"
 
 WORKDIR /app
 

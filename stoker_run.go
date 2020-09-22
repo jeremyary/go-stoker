@@ -14,25 +14,56 @@ import (
 
 func main() {
 
-	kafkaConn, _ := os.LookupEnv("KAFKA_BOOTSTRAP_URL")
+	// fetch Enviro Vars
+	bootstrap_url, _ := os.LookupEnv("KAFKA_BOOTSTRAP_URL")
 	topic, _ := os.LookupEnv("KAFKA_TEST_TOPIC")
-	kafkaRate, _ := os.LookupEnv("KAFKA_SEND_RATE_IN_SEC")
-	kafkaRateSec, _ := strconv.Atoi(kafkaRate)
-	kafkaRateDuration := time.Duration(kafkaRateSec)
+	rate, _ := os.LookupEnv("KAFKA_SEND_RATE_IN_SEC")
+	clientId, _ := os.LookupEnv("CLIENT_ID")
 
-	producer, err := initProducer(kafkaConn)
+	sendRateInSec, _ := strconv.Atoi(rate)
+	sendRate := time.Duration(sendRateInSec)
+
+	// set up TLS & grab a SyncProducer
+	producer, err := initProducer(bootstrap_url, clientId)
 	if err != nil {
-		fmt.Println("Error in producer init: ", err.Error())
-		os.Exit(1)
+		fmt.Println("ERROR in producer init: ", err.Error())
+
 	}
 
-	doEvery(kafkaRateDuration*time.Second, publish, "foo", producer, topic)
+	//TODO: do we care about message (byte) size? should we vary it?
+	message := "traffic generator payload"
+
+	// send regular messages wrt KAFKA_SEND_RATE_IN_SEC
+	doEvery(sendRate*time.Second, publish, message, producer, topic)
 }
 
-func initProducer(url string) (sarama.SyncProducer, error) {
+func doEvery(duration time.Duration, callback func(string, sarama.SyncProducer, time.Time, string),
+	message string, producer sarama.SyncProducer, topic string) {
+
+	for range time.Tick(duration) {
+		callback(message, producer, time.Now().UTC(), topic)
+	}
+}
+
+func publish(message string, producer sarama.SyncProducer, now time.Time, topic string) {
+
+	fmt.Printf("sending - [%s] %s", now.String(), message)
+	producerMsg := &sarama.ProducerMessage{
+		Topic: topic,
+		Value: sarama.StringEncoder(now.String() + " :: " + message),
+	}
+	partition, offset, err := producer.SendMessage(producerMsg)
+	if err != nil {
+		fmt.Println("ERROR publishing: ", err.Error())
+	}
+	fmt.Printf("sent - [%s] partition: %s, offset: %s", now.String(), partition, offset)
+}
+
+func initProducer(url string, clientId string) (sarama.SyncProducer, error) {
 
 	sarama.Logger = log.New(os.Stdout, "", log.Ltime)
 
+	// assumes some Secret mount locations in Pod config!
 	tlsConfig, err := NewTLSConfig(
 		"/etc/client-ca-cert/ca.crt",
 		"/etc/client-ca/ca.key",
@@ -40,63 +71,40 @@ func initProducer(url string) (sarama.SyncProducer, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// This can be used on test server if domain does not match cert:
+
+	// TODO: verify if this is still needed in-cluster
+	// If insecure is required
 	tlsConfig.InsecureSkipVerify = true
 
 	config := sarama.NewConfig()
-	config.ClientID = "log-test-producer"
+	config.ClientID = clientId
 	config.Producer.Retry.Max = 5
-	config.Producer.RequiredAcks = sarama.WaitForAll
+	config.Producer.RequiredAcks = sarama.WaitForAll // bit of an opinion here, tenant req. could vary?
 	config.Producer.Return.Successes = true
 	config.Net.TLS.Enable = true
 	config.Net.TLS.Config = tlsConfig
 
-	prd, err := sarama.NewSyncProducer([]string{url}, config)
-
-	return prd, err
+	producer, err := sarama.NewSyncProducer([]string{url}, config)
+	return producer, err
 }
 
-func doEvery(d time.Duration, f func(string, sarama.SyncProducer, time.Time, string),
-	m string, p sarama.SyncProducer, t string) {
-
-	for tick := range time.Tick(d) {
-		f(m, p, tick, t)
-	}
-}
-
-func publish(message string, producer sarama.SyncProducer, time time.Time, topic string) {
-
-	fmt.Println("sending msg ", time.String()+" :: "+message)
-	msg := &sarama.ProducerMessage{
-		Topic: topic,
-		Value: sarama.StringEncoder(time.String() + " :: " + message),
-	}
-	p, o, err := producer.SendMessage(msg)
-	if err != nil {
-		fmt.Println("Error publishing: ", err.Error())
-	}
-
-	fmt.Println("Partition: ", p)
-	fmt.Println("Offset: ", o)
-}
-
-func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config, error) {
+func NewTLSConfig(clientCertPath, clientKeyPath, clusterCertPath string) (*tls.Config, error) {
 	tlsConfig := tls.Config{}
 
-	// Load client cert
-	cert, err := tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
+	// Load client cert/key
+	clientCert, err := tls.LoadX509KeyPair(clientCertPath, clientKeyPath)
 	if err != nil {
 		return &tlsConfig, err
 	}
-	tlsConfig.Certificates = []tls.Certificate{cert}
+	tlsConfig.Certificates = []tls.Certificate{clientCert}
 
-	// Load CA cert
-	caCert, err := ioutil.ReadFile(caCertFile)
+	// Load cluster cert
+	clusterCert, err := ioutil.ReadFile(clusterCertPath)
 	if err != nil {
 		return &tlsConfig, err
 	}
 	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
+	caCertPool.AppendCertsFromPEM(clusterCert)
 	tlsConfig.RootCAs = caCertPool
 
 	tlsConfig.BuildNameToCertificate()
