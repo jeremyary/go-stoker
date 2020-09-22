@@ -47,7 +47,7 @@ func doEvery(duration time.Duration, callback func(string, sarama.SyncProducer, 
 
 func publish(message string, producer sarama.SyncProducer, now time.Time, topic string) {
 
-	fmt.Printf("sending - [%s] %s", now.String(), message)
+	fmt.Println("sending - [", now.String(), "] ", message)
 	producerMsg := &sarama.ProducerMessage{
 		Topic: topic,
 		Value: sarama.StringEncoder(now.String() + " :: " + message),
@@ -56,7 +56,7 @@ func publish(message string, producer sarama.SyncProducer, now time.Time, topic 
 	if err != nil {
 		fmt.Println("ERROR publishing: ", err.Error())
 	}
-	fmt.Printf("sent - [%s] partition: %s, offset: %s", now.String(), partition, offset)
+	fmt.Println("sent - [", now.String(), "] partition: ", partition, ", offset: ", offset)
 }
 
 func initProducer(url string, clientId string) (sarama.SyncProducer, error) {
