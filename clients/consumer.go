@@ -3,29 +3,25 @@ package clients
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 type Consumer struct {
 }
 
-func (c *Consumer) Consume(KafkaServer string, KafkaTopic string) {
+var (
+	eventsConsumed = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "kafka_events_consumed_total",
+		Help: "The total number of events consumed",
+	})
+)
 
-	tlsConfig, err := NewTLSConfig(
-		"/etc/client-ca-cert/ca.crt",
-		"/etc/client-ca/ca.key",
-		"/etc/cluster-ca/ca.crt")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	tlsConfig.InsecureSkipVerify = true
+func (c *Consumer) Consume(KafkaServer string, KafkaTopic string, tlsConfig *tls.Config) {
 
 	config := sarama.NewConfig()
 	config.Net.TLS.Enable = true
@@ -67,30 +63,8 @@ func (c *Consumer) Cleanup(_ sarama.ConsumerGroupSession) error {
 func (c *Consumer) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for msg := range claim.Messages() {
 		fmt.Printf("consumed message: %v\n", string(msg.Value))
+		eventsConsumed.Inc()
 		sess.MarkMessage(msg, "")
 	}
 	return nil
-}
-
-func NewTLSConfig(clientCertFile, clientKeyFile, caCertFile string) (*tls.Config, error) {
-	tlsConfig := tls.Config{}
-
-	// Load client cert
-	cert, err := tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
-	if err != nil {
-		return &tlsConfig, err
-	}
-	tlsConfig.Certificates = []tls.Certificate{cert}
-
-	// Load CA cert
-	caCert, err := ioutil.ReadFile(caCertFile)
-	if err != nil {
-		return &tlsConfig, err
-	}
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-	tlsConfig.RootCAs = caCertPool
-
-	tlsConfig.BuildNameToCertificate()
-	return &tlsConfig, err
 }

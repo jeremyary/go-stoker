@@ -10,3 +10,5 @@ Currently configured to utilize the secrets provided by Strimzi to connect via b
 - consider Deployment for scaling
 - consider operator for CR parameter capabilities
 - alter messages sent to something other than timestamp/foo, maybe generate something dynamic
+- expose metrics port in deloyment
+- create podmonitor for metrics
