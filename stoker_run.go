@@ -5,14 +5,34 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/Shopify/sarama"
+	"github.com/jeremyary/go-stoker/clients"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
 )
 
+var (
+	eventsProduced = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "kafka_events_produced_total",
+		Help: "The total number of events produced",
+	})
+	eventsProducedFailed = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "kafka_events_produced_failed_total",
+		Help: "The total number of events failed to produce",
+	})
+)
+
 func main() {
+
+	fmt.Println("Starting metrics server")
+	go http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(":8080", nil)
 
 	// fetch Enviro Vars
 	bootstrap_url, _ := os.LookupEnv("KAFKA_BOOTSTRAP_URL")
@@ -34,7 +54,9 @@ func main() {
 	message := "traffic generator payload"
 
 	// send regular messages wrt KAFKA_SEND_RATE_IN_SEC
-	doEvery(sendRate*time.Second, publish, message, producer, topic)
+	go doEvery(sendRate*time.Second, publish, message, producer, topic)
+	consumer := clients.Consumer{}
+	consumer.Consume(bootstrap_url, topic)
 }
 
 func doEvery(duration time.Duration, callback func(string, sarama.SyncProducer, time.Time, string),
@@ -55,8 +77,10 @@ func publish(message string, producer sarama.SyncProducer, now time.Time, topic 
 	partition, offset, err := producer.SendMessage(producerMsg)
 	if err != nil {
 		fmt.Println("ERROR publishing: ", err.Error())
+		eventsProducedFailed.Inc()
 	}
 	fmt.Println("sent - [", now.String(), "] partition: ", partition, ", offset: ", offset)
+	eventsProduced.Inc()
 }
 
 func initProducer(url string, clientId string) (sarama.SyncProducer, error) {
