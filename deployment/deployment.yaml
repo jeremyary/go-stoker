@@ -26,11 +26,11 @@ spec:
           env:
             - name: KAFKA_BOOTSTRAP_URL
               value: 'tenant2-kafka-bootstrap-strimzi-tenant2.apps.mw-ocp4.cloud.lab.eng.bos.redhat.com:443'
-            - name: KAFKA_TEST_TOPIC
+            - name: PRODUCER_TRAFFIC_TOPIC
               value: 'traffic-gen-topic'
-            - name: KAFKA_SEND_RATE_IN_SEC
+            - name: PRODUCER_TRAFFIC_SEND_RATE_IN_SEC
               value: '5'
-            - name: CLIENT_ID
+            - name: PRODUCER_CLIENT_ID
               value: 'traffic-gen-client'
       volumes:
         - name: cluster-ca

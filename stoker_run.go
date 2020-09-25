@@ -23,9 +23,9 @@ func main() {
 
 	// fetch Enviro Vars
 	bootstrap_url, _ := os.LookupEnv("KAFKA_BOOTSTRAP_URL")
-	topic, _ := os.LookupEnv("KAFKA_TEST_TOPIC")
-	rate, _ := os.LookupEnv("KAFKA_SEND_RATE_IN_SEC")
-	clientId, _ := os.LookupEnv("CLIENT_ID")
+	topic, _ := os.LookupEnv("PRODUCER_TRAFFIC_TOPIC")
+	rate, _ := os.LookupEnv("PRODUCER_TRAFFIC_SEND_RATE_IN_SEC")
+	clientId, _ := os.LookupEnv("PRODUCER_CLIENT_ID")
 
 	sendRateInSec, _ := strconv.Atoi(rate)
 	sendRate := time.Duration(sendRateInSec)
