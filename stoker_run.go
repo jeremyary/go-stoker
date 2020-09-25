@@ -18,8 +18,8 @@ import (
 func main() {
 
 	fmt.Println("Starting metrics server")
-	go http.Handle("/metrics", promhttp.Handler())
-	go http.ListenAndServe(":8080", nil)
+	http.Handle("/metrics", promhttp.Handler())
+	http.ListenAndServe(":8080", nil)
 
 	// fetch Enviro Vars
 	bootstrap_url, _ := os.LookupEnv("KAFKA_BOOTSTRAP_URL")
@@ -56,7 +56,7 @@ func main() {
 	message := "traffic generator payload"
 
 	// send regular messages wrt KAFKA_SEND_RATE_IN_SEC and consume them
-	go doEvery(sendRate*time.Second, clients.Publish, message, producer, topic)
+	doEvery(sendRate*time.Second, clients.Publish, message, producer, topic)
 	consumer.Consume(bootstrap_url, topic, tlsConfig)
 }
 

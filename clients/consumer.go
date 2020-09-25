@@ -21,6 +21,9 @@ var (
 	})
 )
 
+// TODO does it make sense to parameterize group name out to operator? I've already pulled out producer info, can do
+// similar for consumer clientID and anything else you need
+//
 func (c *Consumer) Consume(KafkaServer string, KafkaTopic string, tlsConfig *tls.Config) {
 
 	config := sarama.NewConfig()
@@ -33,23 +36,19 @@ func (c *Consumer) Consume(KafkaServer string, KafkaTopic string, tlsConfig *tls
 		panic(err)
 	}
 
-	go func() {
-		for err := range group.Errors() {
-			panic(err)
-		}
-	}()
+	for err := range group.Errors() {
+		panic(err)
+	}
 
-	func() {
-		ctx := context.Background()
-		for {
-			topics := []string{KafkaTopic}
-			err := group.Consume(ctx, topics, c)
-			if err != nil {
-				fmt.Printf("kafka consume failed: %v, sleeping and retry in a moment\n", err)
-				time.Sleep(time.Second)
-			}
+	ctx := context.Background()
+	for {
+		topics := []string{KafkaTopic}
+		err := group.Consume(ctx, topics, c)
+		if err != nil {
+			fmt.Printf("kafka consume failed: %v, sleeping and retry in a moment\n", err)
+			time.Sleep(time.Second)
 		}
-	}()
+	}
 }
 
 func (c *Consumer) Setup(_ sarama.ConsumerGroupSession) error {
