@@ -5,14 +5,21 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/Shopify/sarama"
+	"github.com/jeremyary/go-stoker/clients"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
 )
 
 func main() {
+
+	fmt.Println("Starting metrics server")
+	go http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(":8080", nil)
 
 	// fetch Enviro Vars
 	bootstrap_url, _ := os.LookupEnv("KAFKA_BOOTSTRAP_URL")
@@ -23,46 +30,7 @@ func main() {
 	sendRateInSec, _ := strconv.Atoi(rate)
 	sendRate := time.Duration(sendRateInSec)
 
-	// set up TLS & grab a SyncProducer
-	producer, err := initProducer(bootstrap_url, clientId)
-	if err != nil {
-		fmt.Println("ERROR in producer init: ", err.Error())
-
-	}
-
-	//TODO: do we care about message (byte) size? should we vary it?
-	message := "traffic generator payload"
-
-	// send regular messages wrt KAFKA_SEND_RATE_IN_SEC
-	doEvery(sendRate*time.Second, publish, message, producer, topic)
-}
-
-func doEvery(duration time.Duration, callback func(string, sarama.SyncProducer, time.Time, string),
-	message string, producer sarama.SyncProducer, topic string) {
-
-	for range time.Tick(duration) {
-		callback(message, producer, time.Now().UTC(), topic)
-	}
-}
-
-func publish(message string, producer sarama.SyncProducer, now time.Time, topic string) {
-
-	fmt.Println("sending - [", now.String(), "] ", message)
-	producerMsg := &sarama.ProducerMessage{
-		Topic: topic,
-		Value: sarama.StringEncoder(now.String() + " :: " + message),
-	}
-	partition, offset, err := producer.SendMessage(producerMsg)
-	if err != nil {
-		fmt.Println("ERROR publishing: ", err.Error())
-	}
-	fmt.Println("sent - [", now.String(), "] partition: ", partition, ", offset: ", offset)
-}
-
-func initProducer(url string, clientId string) (sarama.SyncProducer, error) {
-
-	sarama.Logger = log.New(os.Stdout, "", log.Ltime)
-
+	// setup tls
 	// assumes some Secret mount locations in Pod config!
 	tlsConfig, err := NewTLSConfig(
 		"/etc/client-ca-cert/ca.crt",
@@ -76,16 +44,28 @@ func initProducer(url string, clientId string) (sarama.SyncProducer, error) {
 	// If insecure is required
 	tlsConfig.InsecureSkipVerify = true
 
-	config := sarama.NewConfig()
-	config.ClientID = clientId
-	config.Producer.Retry.Max = 5
-	config.Producer.RequiredAcks = sarama.WaitForAll // bit of an opinion here, tenant req. could vary?
-	config.Producer.Return.Successes = true
-	config.Net.TLS.Enable = true
-	config.Net.TLS.Config = tlsConfig
+	// grab a SyncProducer and a consumer
+	producer, err := clients.InitProducer(bootstrap_url, clientId, tlsConfig)
+	if err != nil {
+		fmt.Println("ERROR in producer init: ", err.Error())
 
-	producer, err := sarama.NewSyncProducer([]string{url}, config)
-	return producer, err
+	}
+	consumer := clients.Consumer{}
+
+	//TODO: do we care about message (byte) size? should we vary it?
+	message := "traffic generator payload"
+
+	// send regular messages wrt KAFKA_SEND_RATE_IN_SEC and consume them
+	go doEvery(sendRate*time.Second, clients.Publish, message, producer, topic)
+	consumer.Consume(bootstrap_url, topic, tlsConfig)
+}
+
+func doEvery(duration time.Duration, callback func(string, sarama.SyncProducer, time.Time, string),
+	message string, producer sarama.SyncProducer, topic string) {
+
+	for range time.Tick(duration) {
+		callback(message, producer, time.Now().UTC(), topic)
+	}
 }
 
 func NewTLSConfig(clientCertPath, clientKeyPath, clusterCertPath string) (*tls.Config, error) {

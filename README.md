@@ -7,4 +7,8 @@ Currently configured to utilize the secrets provided by Strimzi to connect via b
 
 #### TODO:
 - figure out internal route/<blah>.svc.local DNS instead of external 443 route?
-- alter messages sent to something other than timestamp/foo, maybe generate something dynamic
+- alter messages sent to something parameterized for variance in payload content/byte size
+
+These can be done in operator now:
+- expose metrics port in deloyment
+- create podmonitor for metrics
