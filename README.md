@@ -7,6 +7,4 @@ Currently configured to utilize the secrets provided by Strimzi to connect via b
 
 #### TODO:
 - figure out internal route/<blah>.svc.local DNS instead of external 443 route?
-- consider Deployment for scaling
-- consider operator for CR parameter capabilities
 - alter messages sent to something other than timestamp/foo, maybe generate something dynamic
