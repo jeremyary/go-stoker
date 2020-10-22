@@ -1,4 +1,20 @@
-.idea
+# Eclipse specific
+**/.project
+**/.settings/*
+**/.prefs
+**/.classpath
+/target/
+
+# IntelliJ IDEA specific
+.idea/
+*.iml
+
+# VS Code
+.factorypath
+.vscode
+
+# MacOS Desktop Services Store files
+**/.DS_Store
 
 # Binaries for programs and plugins
 *.exe
