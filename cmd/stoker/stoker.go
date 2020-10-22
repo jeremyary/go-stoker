@@ -9,7 +9,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/Shopify/sarama"
-	"github.com/jeremyary/go-stoker/clients"
+	"github.com/jeremyary/go-stoker/internal/clients"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io/ioutil"
 	"log"
