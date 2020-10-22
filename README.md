@@ -1,14 +1,15 @@
 # Go-Stoker
 
-Simple script meant to run in a pod alongside Strimzi deployments and generate regular traffic for testing log aggregation. 
+Go script intended to run in a pod alongside Strimzi Kafka deployments and produce/consume regular traffic for testing 
+log aggregation. Various metrics are exposed via [promhttp](https://godoc.org/github.com/prometheus/client_golang/prometheus/promhttp) 
+for monitoring of broker availability/latency/etc.
 
-Currently configured to utilize the secrets provided by Strimzi to connect via bootstrap. See `pod.yaml` for example of what to apply within Strimzi (tenant) namespace.
 
+- PoC project currently assumes:
+  - usage of external `type:route` listener in Strimzi Kafka CR configuration
+  - TLS authentication via Strimzi `bootstrap` route, port `443`
+  - currently utilize secrets provided by Strimzi namespace
+  - see [deployment](deployment) directory for example pod/deployment YAML files to deploy within the Strimzi Kafka 
+  namespace.
+- Dockerfile for script builds on `golang:latest` image
 
-#### TODO:
-- figure out internal route/<blah>.svc.local DNS instead of external 443 route?
-- alter messages sent to something parameterized for variance in payload content/byte size
-
-These can be done in operator now:
-- expose metrics port in deloyment
-- create podmonitor for metrics
