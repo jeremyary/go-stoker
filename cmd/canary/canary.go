@@ -11,11 +11,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/jeremyary/go-stoker/cmd/canary/config"
 	"github.com/jeremyary/go-stoker/internal/clients"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -26,22 +25,11 @@ func main() {
 	http.Handle("/metrics", promhttp.Handler())
 	http.ListenAndServe(":8080", nil)
 
-	// fetch Enviro Vars
-	bootstrap_url, _ := os.LookupEnv("KAFKA_BOOTSTRAP_URL")
-	topic, _ := os.LookupEnv("PRODUCER_TRAFFIC_TOPIC")
-	rate, _ := os.LookupEnv("PRODUCER_TRAFFIC_SEND_RATE_IN_SEC")
-	clientId, _ := os.LookupEnv("PRODUCER_CLIENT_ID")
-
-	tlsEnabled := false
-	if tlsValue, ok := os.LookupEnv("TLS_ENABLED"); ok {
-		tlsEnabled, _ = strconv.ParseBool(tlsValue)
-	}
-
-	sendRateInSec, _ := strconv.Atoi(rate)
-	sendRate := time.Duration(sendRateInSec)
+	// fetch canary configuration
+	config := config.NewCanaryConfig()
 
 	var tlsConfig *tls.Config
-	if tlsEnabled {
+	if config.TLSEnabled {
 		// setup tls
 		// assumes some Secret mount locations in Pod config!
 		var err error
@@ -58,7 +46,7 @@ func main() {
 	}
 
 	// grab a SyncProducer and a consumer
-	producer, err := clients.InitProducer(bootstrap_url, clientId, tlsConfig)
+	producer, err := clients.InitProducer(config.BootstrapServers, config.ProducerClientID, tlsConfig)
 	if err != nil {
 		fmt.Println("ERROR in producer init: ", err.Error())
 
@@ -69,8 +57,8 @@ func main() {
 	message := "traffic generator payload"
 
 	// send regular messages wrt KAFKA_SEND_RATE_IN_SEC and consume them
-	doEvery(sendRate*time.Second, clients.Publish, message, producer, topic)
-	consumer.Consume(bootstrap_url, topic, tlsConfig)
+	doEvery(config.SendRate*time.Second, clients.Publish, message, producer, config.Topic)
+	consumer.Consume(config.BootstrapServers, config.Topic, tlsConfig)
 }
 
 func doEvery(duration time.Duration, callback func(string, sarama.SyncProducer, time.Time, string),
