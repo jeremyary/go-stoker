@@ -33,8 +33,7 @@ func main() {
 	clientId, _ := os.LookupEnv("PRODUCER_CLIENT_ID")
 
 	tlsEnabled := false
-	tlsValue, tlsOk := os.LookupEnv("TLS_ENABLED")
-	if tlsOk {
+	if tlsValue, ok := os.LookupEnv("TLS_ENABLED"); ok {
 		tlsEnabled, _ = strconv.ParseBool(tlsValue)
 	}
 
