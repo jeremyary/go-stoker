@@ -8,15 +8,16 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/Shopify/sarama"
-	"github.com/jeremyary/go-stoker/internal/clients"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/Shopify/sarama"
+	"github.com/jeremyary/go-stoker/internal/clients"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -31,22 +32,30 @@ func main() {
 	rate, _ := os.LookupEnv("PRODUCER_TRAFFIC_SEND_RATE_IN_SEC")
 	clientId, _ := os.LookupEnv("PRODUCER_CLIENT_ID")
 
+	tlsEnabled := false
+	if tlsValue, ok := os.LookupEnv("TLS_ENABLED"); ok {
+		tlsEnabled, _ = strconv.ParseBool(tlsValue)
+	}
+
 	sendRateInSec, _ := strconv.Atoi(rate)
 	sendRate := time.Duration(sendRateInSec)
 
-	// setup tls
-	// assumes some Secret mount locations in Pod config!
-	tlsConfig, err := NewTLSConfig(
-		"/etc/client-ca-cert/ca.crt",
-		"/etc/client-ca/ca.key",
-		"/etc/cluster-ca/ca.crt")
-	if err != nil {
-		log.Fatal(err)
+	var tlsConfig *tls.Config
+	if tlsEnabled {
+		// setup tls
+		// assumes some Secret mount locations in Pod config!
+		var err error
+		tlsConfig, err = NewTLSConfig(
+			"/etc/client-ca-cert/ca.crt",
+			"/etc/client-ca/ca.key",
+			"/etc/cluster-ca/ca.crt")
+		if err != nil {
+			log.Fatal(err)
+		}
+		// TODO: verify if this is still needed in-cluster
+		// If insecure is required
+		tlsConfig.InsecureSkipVerify = true
 	}
-
-	// TODO: verify if this is still needed in-cluster
-	// If insecure is required
-	tlsConfig.InsecureSkipVerify = true
 
 	// grab a SyncProducer and a consumer
 	producer, err := clients.InitProducer(bootstrap_url, clientId, tlsConfig)
