@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/jeremyary/go-stoker/cmd/canary/config"
 	"github.com/jeremyary/go-stoker/internal/clients"
+	"github.com/jeremyary/go-stoker/internal/config"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
