@@ -28,14 +28,16 @@ spec:
               mountPath: /etc/client-ca-cert
               readOnly: true
           env:
-            - name: KAFKA_BOOTSTRAP_URL
+            - name: KAFKA_BOOTSTRAP_SERVERS
               value: 'tenant2-kafka-bootstrap-strimzi-tenant2.apps.mw-ocp4.cloud.lab.eng.bos.redhat.com:443'
-            - name: PRODUCER_TRAFFIC_TOPIC
+            - name: TOPIC
               value: 'traffic-gen-topic'
-            - name: PRODUCER_TRAFFIC_SEND_RATE_IN_SEC
+            - name: SEND_RATE
               value: '5'
             - name: PRODUCER_CLIENT_ID
               value: 'traffic-gen-client'
+            - name: TLS_ENABLED
+              value: true
       volumes:
         - name: cluster-ca
           secret:
