@@ -23,7 +23,7 @@ func main() {
 
 	fmt.Println("Starting metrics server")
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":8080", nil)
+	go http.ListenAndServe(":8080", nil)
 
 	// fetch canary configuration
 	config := config.NewCanaryConfig()
@@ -57,7 +57,7 @@ func main() {
 	message := "traffic generator payload"
 
 	// send regular messages wrt KAFKA_SEND_RATE_IN_SEC and consume them
-	doEvery(config.SendRate*time.Second, clients.Publish, message, producer, config.Topic)
+	go doEvery(config.SendRate*time.Second, clients.Publish, message, producer, config.Topic)
 	consumer.Consume(config.BootstrapServers, config.Topic, tlsConfig)
 }
 
