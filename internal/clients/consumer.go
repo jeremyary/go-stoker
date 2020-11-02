@@ -40,9 +40,11 @@ func (c *Consumer) Consume(KafkaServer string, KafkaTopic string, tlsConfig *tls
 		panic(err)
 	}
 
-	for err := range group.Errors() {
-		panic(err)
-	}
+	go func() {
+		for err := range group.Errors() {
+			panic(err)
+		}
+	}()
 
 	ctx := context.Background()
 	for {
