@@ -31,10 +31,12 @@ var (
 func (c *Consumer) Consume(KafkaServer string, KafkaTopic string, tlsConfig *tls.Config) {
 
 	config := sarama.NewConfig()
-	config.Net.TLS.Enable = true
-	config.Net.TLS.Config = tlsConfig
 	config.ClientID = "log-test-producer"
 	config.Version = sarama.V2_4_0_0
+	if tlsConfig != nil {
+		config.Net.TLS.Enable = true
+		config.Net.TLS.Config = tlsConfig
+	}
 	group, err := sarama.NewConsumerGroup([]string{KafkaServer}, "my-group", config)
 	if err != nil {
 		panic(err)
